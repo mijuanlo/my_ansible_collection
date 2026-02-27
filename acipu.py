@@ -201,7 +201,7 @@ class CallbackModule(CallbackBase):
         self.acipu_url = self.get_option('url')
         ssl_cert = self.get_option('client_cert')
         ssl_key = self.get_option('client_key')
-        self.ca_cert = self.get_option('ca_cert')
+        self.ca_cert = self.get_option('server_cert')
         self.dir_store = self.get_option('dir_store')
 
         if not HAS_REQUESTS:
