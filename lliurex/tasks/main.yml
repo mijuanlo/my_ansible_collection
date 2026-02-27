@@ -1,0 +1,11 @@
+---
+# tasks file for lliurex
+- name: Default action
+  debug:
+    msg: "Online host!"
+
+- name: Run all default actions
+  include_role: 
+    name: llx.lliurex.lliurex
+    tasks_from: facts
+
