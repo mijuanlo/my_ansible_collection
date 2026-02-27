@@ -109,7 +109,7 @@ class SourcePortAdapter(HTTPAdapter):
         self.source_port = source_port
         super().__init__(*args, **kwargs)
     
-    def init_poolmanager(self, *args, **kwargs):
+    def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
         # Configurar opciones de socket
         socket_options = [
             (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
@@ -122,7 +122,10 @@ class SourcePortAdapter(HTTPAdapter):
         kwargs['source_address'] = ('', self.source_port)
         kwargs['socket_options'] = socket_options
 
-        return super().init_poolmanager(*args, **kwargs)
+        # Desactivamos la validacion del hostname & SAN
+        kwargs['assert_hostname'] = False
+
+        return super().init_poolmanager(connections, maxsize, block, **kwargs)
 
 from ansible.module_utils._text import to_text
 from ansible.module_utils.parsing.convert_bool import boolean as to_bool
@@ -178,7 +181,6 @@ def get_now():
     """
     return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S+00:00")
 
-
 class CallbackModule(CallbackBase):
     CALLBACK_VERSION = 2.0
     CALLBACK_TYPE = 'notification'
@@ -218,7 +220,7 @@ class CallbackModule(CallbackBase):
             if not os.path.exists(ssl_key):
                 self._disable_plugin(u'ACIPU_SSL_KEY %s not found.' % ssl_key)
 
-            if not os.path.exists(ca_cert):
+            if not os.path.exists(self.ca_cert):
                 self._disable_plugin(u'ACIPU_CA_CERT %s not found.' % ca_cert)
 
             self.session.verify = self.ca_cert
@@ -231,7 +233,7 @@ class CallbackModule(CallbackBase):
         else:
             self._display.warning(u'Disabling the ACIPU callback plugin.')
 
-    def _send_data(self, data_type, report_type, host, data):
+    def _send_data(self, data_type, host, data):
         # Skip sending reports for offline/unreachable hosts
         if data_type == 'report':
             msg = data.get('config_report',{}).get('logs',{})
@@ -274,7 +276,7 @@ class CallbackModule(CallbackBase):
                 },
             }
 
-            self._send_data('facts', 'foreman', host, facts)
+            self._send_data('facts', host, facts)
 
     def send_reports_foreman(self, stats):
         """
@@ -307,23 +309,8 @@ class CallbackModule(CallbackBase):
                 report['config_report']['status']['pending'] = total['changed']
                 report['config_report']['status']['applied'] = 0
 
-            self._send_data('report', 'foreman', host, report)
+            self._send_data('report', host, report)
             self.items[host] = []
-
-    def drop_nones(self, d):
-        """Recursively drop Nones or empty dicts/arrays in dict d and return a new dict"""
-        dd = {}
-        for k, v in d.items():
-            if isinstance(v, dict) and v:
-                dd[k] = self.drop_nones(v)
-            elif isinstance(v, list) and len(v) == 1 and v[0] == {}:
-                pass
-            elif isinstance(v, (list, set, tuple)) and v:
-                dd[k] = type(v)(self.drop_nones(vv) if isinstance(vv, dict) else vv
-                                for vv in v)
-            elif not isinstance(v, (dict, list, set, tuple)) and v is not None:
-                dd[k] = v
-        return dd
 
     def append_result(self, result, failed=False):
         result_info = result._result
@@ -333,8 +320,6 @@ class CallbackModule(CallbackBase):
         value['result'] = result_info
         value['task'] = task_info
         value['failed'] = failed
-        if self.report_type == "proxy":
-            value = self.drop_nones(value)
         host = result._host.get_name()
         self.items[host].append(value)
         self.check_mode = result._task.check_mode
