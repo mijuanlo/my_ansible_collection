@@ -1,0 +1,4 @@
+[submodule "collections/ansible_collections/llx/lliurex/plugins/callback"]
+	path = collections/ansible_collections/llx/lliurex/plugins/callback
+	url = https://github.com/mijuanlo/my_ansible_collection
+	branch = acipu_callback
