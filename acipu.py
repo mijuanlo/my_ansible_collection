@@ -95,6 +95,7 @@ from collections import defaultdict
 import json
 import time
 from urllib.parse import urlparse
+import subprocess
 
 try:
     import requests
@@ -290,8 +291,8 @@ class CallbackModule(CallbackBase):
                     "ansible_facts": facts,
                     "_type": "ansible",
                     "_timestamp": get_now(),
-                    "_myip": str(self.get_ip_info())
                 },
+                "_myip": str(self.get_ip_info()),
             }
 
             self._send_data('facts', host, facts)
