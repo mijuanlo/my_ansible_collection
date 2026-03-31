@@ -94,6 +94,7 @@ from datetime import datetime
 from collections import defaultdict
 import json
 import time
+from urllib.parse import urlparse
 
 try:
     import requests
@@ -260,6 +261,22 @@ class CallbackModule(CallbackBase):
                 self._display.warning(u'Sending data to ACIPU at {url} failed for {host}: {err}'.format(
                     host=to_text(host), err=to_text(err), url=to_text(self.acipu_url)))
 
+    def get_ip_info(self):
+        ip = None
+        try:
+            servername = urlparse(self.acipu_url).hostname
+        except:
+            return None
+        serverip = socket.gethostbyname(self.acipu_url)
+        netinfo = subprocess.check_output(['/usr/bin/ip','-j','r','get',serverip])
+        ip = None
+        try:
+            ninfo = json.loads(netinfo)
+            ip = ninfo[0].get('prefsrc')
+        except:
+            ip = None
+        return ip
+
     def send_facts(self):
         """
         Sends facts to ACIPU, to be parsed by foreman_ansible fact
@@ -273,6 +290,7 @@ class CallbackModule(CallbackBase):
                     "ansible_facts": facts,
                     "_type": "ansible",
                     "_timestamp": get_now(),
+                    "_myip": str(self.get_ip_info())
                 },
             }
 
@@ -303,7 +321,8 @@ class CallbackModule(CallbackBase):
                     "logs": list(build_log_foreman(self.items[host])),
                     "reporter": "ansible",
                     "check_mode": self.check_mode,
-                }
+                },
+                "_myip": str(self.get_ip_info())
             }
             if self.check_mode:
                 report['config_report']['status']['pending'] = total['changed']
