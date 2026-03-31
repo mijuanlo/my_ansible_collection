@@ -267,7 +267,7 @@ class CallbackModule(CallbackBase):
             servername = urlparse(self.acipu_url).hostname
         except:
             return None
-        serverip = socket.gethostbyname(self.acipu_url)
+        serverip = socket.gethostbyname(servername)
         netinfo = subprocess.check_output(['/usr/bin/ip','-j','r','get',serverip])
         ip = None
         try:
